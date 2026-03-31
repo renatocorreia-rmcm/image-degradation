@@ -1,96 +1,79 @@
 import numpy as np
 from Fl import Fl
-import scipy.linalg as la
 
 def to_fl_matrix(M: np.ndarray) -> np.ndarray:
     return np.vectorize(Fl)(M)
 
-def matrix_mult(M1: np.ndarray, M2: np.ndarray) -> np.ndarray:
-    M1_Fl = to_fl_matrix(M1)
-    M2_Fl = to_fl_matrix(M2)
+def LU_factorization(matrix:np.ndarray, fl=False, pivoting=True) -> tuple[np.array]:
+    size = matrix.shape[0]
 
-    return M1_Fl @ M2_Fl
+    convert = to_fl_matrix if fl else lambda x: x.astype(np.float64)
 
-
-def LU_fatoration(matrix:np.ndarray, fl=False)->tuple[np.ndarray] | None:
-    size = np.shape(matrix)[0]
-
-    lower = np.eye(size ,dtype=np.float64)
-    upper = matrix.astype(np.float64)
-    #upper = upper.astype(np.float64)
-
-    #lower = to_fl_matrix(lower)
-    #upper = to_fl_matrix(upper)
+    lower = convert(np.eye(size))
+    upper = convert(matrix.copy())
+    permutation = convert(np.eye(size))
 
     for i in range(size):
+        if pivoting:
+            row = i
+            pivo = abs(upper[i][i])
+
+            for k in range(i, size):
+                if abs(upper[k][i]) > pivo:
+                    pivo = abs(upper[k][i])
+                    row = k
+
+            if row != i:
+                upper[[row, i]] = upper[[i, row]]
+                permutation[[row, i]] = permutation[[i, row]]
+
+                for j in range(i):
+                    lower[row][j], lower[i][j] = lower[i][j], lower[row][j]
+
         pivo = upper[i][i]
 
-        # TODO: create partial pivoting
-        if pivo == 0: 
-            print(f"need partial pivoting")
-            return
+        if pivo == 0:
+            raise Exception("Impossible to LU decompose the given matrix")
 
         for j in range(i+1, size):
             ml = upper[j][i] / pivo
 
             lower[j][i] = ml
-            upper[j] -= (upper[i]*ml)
+            upper[j] -= upper[i] * ml
 
-    return lower, upper
+    return permutation, lower, upper
 
-def inverse_matrix(matrix:np.ndarray)->np.ndarray | None:
+# PA = UL -> A = P⁻¹·UL -> A⁻¹ = (P⁻¹·UL)⁻¹ = L⁻¹U⁻¹·P 
+def inverse_matrix(matrix:np.ndarray, fl=False) -> np.ndarray:
     # Ly = B
     # Ux = y
     size = np.shape(matrix)[0]
 
     inverse = np.zeros((size, size))
-    inverse = to_fl_matrix(inverse)
+    if fl: inverse = to_fl_matrix(inverse)
     
-    lu = LU_fatoration(matrix)
-
-    if lu == None:
-        print("não é inversível")
-        return
-
-    lower, upper = lu
+    try:
+        permutation, lower, upper = LU_factorization(matrix, fl=fl, pivoting=True)
+    except Exception:
+        raise Exception("Not inversible")
 
     for i in range(size):
         b = np.zeros(size)
         b[i] = 1
-        
+
         # Ly = b
         y = np.zeros(size)
-        y = to_fl_matrix(y)
+        if fl: y = to_fl_matrix(y)
         for m in range(size):
             y[m] = (b[m] - sum([lower[m][n]*y[n] for n in range(m)])) / lower[m][m]
 
         # Ux = y
         x = np.zeros(size)
-        x = to_fl_matrix(x)
+        if fl: x = to_fl_matrix(x)
         for m in range(size-1, -1, -1):
             x[m] = (y[m] - sum([upper[m][n]*x[n] for n in range (m+1, size)])) / upper[m][m]
 
         for j in range(size):
             inverse[j][i] = x[j]
     
-    return inverse
-
-
-# M1 = np.array([(1,1,1),
-#                (2,2,2),
-#                (3,3,3)])
-# M2 = np.array([(1,1,1),
-#                (2,2,2),
-#                (3,3,3)])
-# 
-# print(matrix_mult(M1,M2))
-
-# a = np.array([[3,2,4],[1,1,2],[4,3,-2]])
-# 
-# a = to_fl_matrix(a)
-# 
-# l, u = LU_fatoration(a)
-# print(l,"\n")
-# print(u,"\n")
-
-# print(inverse_matrix(np.array([[3,2,4],[1,1,2],[4,3,-2]])))
+    return inverse @ permutation
