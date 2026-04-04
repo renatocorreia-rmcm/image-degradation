@@ -8,7 +8,6 @@ if img is not None:
     print(img.shape)
     print(img)
 
-
     cv2.imshow('gam junior', img)
 
     # 0 means wait indefinitely for a key press

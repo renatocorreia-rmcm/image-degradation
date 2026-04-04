@@ -1,8 +1,7 @@
-from __future__ import annotations  # allow to reference type class inside herself
+from __future__ import annotations
 
 import math
 from math import log, floor
-from typing import Union
 
 # MACHINE SETTINGS
 b = 10
@@ -12,131 +11,154 @@ k2 = 3
 
 
 class Fl:
-	"""
-    Type class for representable floats inside small machine
-    Closed for math operations
-    """
+    value: float
 
-	value: float
+    sinal: int
+    m: float
+    e: int
 
-	# used in representation only
+    def __init__(self, x):
 
-	sinal: int
-	m: float
-	e: int
+        if isinstance(x, Fl):
+            self.value = x.value
+            self.sinal = x.sinal
+            self.m = x.m
+            self.e = x.e
+            return
 
-	def __init__(self, x):
+        # casos especiais
+        if x == 0:
+            self.value = 0
+            self.sinal = 1
+            self.m = 0
+            self.e = 0
+            return
 
-		if isinstance(x, Fl):  # avoid redundancy in parsing
-			self.value = x.value
-			self.sinal = x.sinal
-			self.m = x.m
-			self.e = x.e
-			return
+        if math.isinf(x):
+            self.value = float('inf')
+            return
 
-		# absolute zero
-		if x == 0:
-			self.value = 0
-			return
-		if math.isinf(x):
-			self.value = x
-			return
+        # sinal
+        self.sinal = -1 if x < 0 else 1
+        x = abs(x)
 
-		# other cases
+        # estimativa inicial
+        e = int(floor(log(x, b))) + 1
+        m = x / (b ** e)
 
-		# scientific notation
-		self.sinal = -1 if x < 0 else 1
-		x = abs(x)
-		self.e = int(floor(log(x, b))) + 1
-		self.m = x / (b ** self.e)
-		self.m = round(self.m, t)  # todo: allow truncation
-		if self.m >= 1:
-			self.m /= b
-			self.e += 1
+        # arredondamento
+        m = round(m, t)
 
-		# infinite
-		if self.e > k2:
-			self.value = float('inf')
-			return
-		# zero
-		if self.e < k1:
-			self.value = 0
-			return
+        # RENORMALIZAÇÃO (essencial)
+        if m != 0:
+            while m >= 1:
+                m /= b
+                e += 1
 
-		# ordinary representable
-		self.value = self.sinal * self.m * (b ** self.e)
-		return
+            while m < 0.1:
+                m *= b
+                e -= 1
 
-	def __add__(self, other):
-		if isinstance(other, Fl):
-			return Fl(self.value + other.value)
+        # normal
+        if k1 <= e <= k2:
+            pass
 
-		return self.__add__(Fl(other))
+        # subnormal
+        elif e < k1:
+            e = k1
+            m = x / (b ** e)
+            m = round(m, t)
 
-	def __radd__(self, other):
-		return self.__add__(other)
+            # se zerar → underflow real
+            if m == 0:
+                self.value = 0
+                self.m = 0
+                self.e = 0
+                return
 
-	def __neg__(self):
-		return Fl(-self.value)
+        # overflow
+        else:  # e > k2
+            self.value = float('inf')
+            return
 
-	def __sub__(self, other):
-		return self.__add__(-other)
+        # valor final
+        self.m = m
+        self.e = e
+        self.value = self.sinal * self.m * (b ** self.e)
 
-	def __rsub__(self, other):
-		return (-self).__add__(other)
+    # =====================
+    # operações
+    # =====================
 
-	def __mul__(self, other):
-		if isinstance(other, Fl):
-			return Fl(self.value * (other.value))
-		return self.__mul__(Fl(other))
+    def __add__(self, other):
+        if isinstance(other, Fl):
+            return Fl(self.value + other.value)
+        return Fl(self.value + other)
 
-	def __rmul__(self, other):
-		return self.__mul__(other)
+    def __radd__(self, other):
+        return self.__add__(other)
 
-	def __truediv__(self, other):
-		if isinstance(other, Fl):
-			return Fl(self.value / other.value)
-		return self.__truediv__(Fl(other))
+    def __neg__(self):
+        return Fl(-self.value)
 
-	def __rtruediv__(self, other):
-		if isinstance(other, Fl):
-			return Fl(other.value / self.value)
-		return Fl(other).__truediv__(self)
+    def __sub__(self, other):
+        return self.__add__(-other)
 
-	def __repr__(self):
-		if self.value == float('inf') or self.value == 0:
-			return str(self.value)
-		return f"{'-' if self.sinal == -1 else '+'}{self.m}{(t+2-len(str(self.m)))*'0'}*{b}^{self.e}"  # todo: optimize trailling zeros format
+    def __rsub__(self, other):
+        return Fl(other).__sub__(self)
 
-	def __eq__(self, other):
-		if isinstance(other, Fl):
-			return other.value == self.value
-		return Fl(other).__eq__(self)
+    def __mul__(self, other):
+        if isinstance(other, Fl):
+            return Fl(self.value * other.value)
+        return Fl(self.value * other)
 
-	def __ne__(self, other):
-		if isinstance(other, Fl):
-			return other.value != self.value
-		return Fl(other).__ne__(self)
+    def __rmul__(self, other):
+        return self.__mul__(other)
 
-	def __gt__(self, other):
-		if isinstance(other, Fl):
-			return other.value < self.value
-		return Fl(other).__gt__(self)
+    def __truediv__(self, other):
+        if isinstance(other, Fl):
+            return Fl(self.value / other.value)
+        return Fl(self.value / other)
 
-	def __ge__(self, other):
-		if isinstance(other, Fl):
-			return other.value <= self.value
-		return Fl(other).__ge__(self)
-	
-	def __lt__(self, other):
-		if isinstance(other, Fl):
-			return other.value > self.value
-		return Fl(other).__lt__(self)
+    def __rtruediv__(self, other):
+        return Fl(other).__truediv__(self)
 
-	def __le__(self, other):
-		if isinstance(other, Fl):
-			return other.value >= self.value
-		return Fl(other).__le__(self)
+    # =====================
+    # representação
+    # =====================
 
-	def __abs__(self):
-		return Fl(abs(self.value))
+    def __repr__(self):
+        if self.value == float('inf') or self.value == 0:
+            return str(self.value)
+
+        sign = '-' if self.sinal == -1 else '+'
+        m_str = f"{self.m:.{t}f}"
+
+        return f"{sign}{m_str}*{b}^{self.e}"
+
+    # =====================
+    # comparações
+    # =====================
+
+    def __eq__(self, other):
+        if isinstance(other, Fl):
+            return self.value == other.value
+        return self.value == Fl(other).value
+
+    def __lt__(self, other):
+        if isinstance(other, Fl):
+            return self.value < other.value
+        return self.value < Fl(other).value
+
+    def __le__(self, other):
+        return self == other or self < other
+
+    def __gt__(self, other):
+        return not self.__le__(other)
+
+    def __ge__(self, other):
+        return not self.__lt__(other)
+
+    def __abs__(self):
+        return Fl(abs(self.value))
+
