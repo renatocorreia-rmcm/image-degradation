@@ -1,6 +1,10 @@
 import numpy as np
 from Fl import Fl
 
+
+# todo: implement gauss elimination
+
+
 def to_fl_matrix(M: np.ndarray) -> np.ndarray:
     return np.vectorize(Fl)(M)
 

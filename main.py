@@ -16,3 +16,6 @@ if img is not None:
 
     # Closes all the OpenCV windows we created
     cv2.destroyAllWindows()
+
+
+# todo: começar a escrever as tranformações em Fl aqui com demonstração e comparação de erros
