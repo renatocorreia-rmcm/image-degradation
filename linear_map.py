@@ -86,7 +86,7 @@ def linear_map(matrix: np.ndarray, img: np.ndarray):  # todo: use our Fl type
                 color = bilerp(v00, v01, v10, v11, di, dj)  # todo: implement others interpolations
 
                 new_img[new_i, new_j] = color
-                old_img[int(old_i), int(old_j)] = color
+                old_img[int(old_i) + corretor[0], int(old_j)+corretor[1]] = color
 
     return old_img, new_img
 
@@ -94,8 +94,8 @@ def linear_map(matrix: np.ndarray, img: np.ndarray):  # todo: use our Fl type
 v: np.ndarray = cv2.imread('assets/cat.jpg')
 
 A = np.array([
-    [3, 3],
-    [0, 3]
+    [1, 0],
+    [1, 1]
 ])
 
 theta = -math.pi / 8
@@ -109,3 +109,5 @@ old_img, new_img = linear_map(A, v)
 
 cv2.imwrite('old_img.png', old_img)
 cv2.imwrite('new_img.png', new_img)
+overlay = cv2.addWeighted(new_img, 0.5, old_img, 0.5, 0)
+cv2.imwrite('overlay.png', overlay)
