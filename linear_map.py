@@ -3,6 +3,7 @@ import math
 import numpy as np
 import cv2
 
+
 # todo: definir função top level pra magnificação/contração (chama linear map)
 
 
@@ -33,9 +34,9 @@ def linear_map(matrix: np.ndarray, img: np.ndarray):  # todo: use our Fl type
     ]
 
     # aplica transformação
-    transformed_vertices = [
+    transformed_vertices = np.array([
         matrix @ np.array(v) for v in original_vertices
-    ]
+    ])
 
     # calcula boundings
     all_i = [v[0] for v in original_vertices] + [v[0] for v in transformed_vertices]
@@ -58,9 +59,15 @@ def linear_map(matrix: np.ndarray, img: np.ndarray):  # todo: use our Fl type
     new_img = np.zeros((new_h, new_w, 3), dtype='uint8')
     old_img = np.zeros((new_h, new_w, 3), dtype='uint8')
 
-    for new_i in range(new_h):
-        for new_j in range(new_w):
-            old_i, old_j = matrix_inv @ np.array([new_i, new_j] - corretor)  # todo: optimize: avoid to transform every vector in black board. Could predict iff it lands on img without doing so.
+    for new_i in range(  # tranformed image bounding box i
+            np.floor(np.min(transformed_vertices[:, 0]))+corretor[0],
+            np.floor(np.max(transformed_vertices[:, 0]))+corretor[0]
+    ):
+        for new_j in range(  # tranformed image bounding box j
+                np.floor(np.min(transformed_vertices[:, 1]))+corretor[1],
+                np.floor(np.max(transformed_vertices[:, 1]))+corretor[1]
+        ):
+            old_i, old_j = matrix_inv @ np.array([new_i, new_j] - corretor)
 
             if (
                     0 <= old_i < h and
@@ -88,7 +95,7 @@ def linear_map(matrix: np.ndarray, img: np.ndarray):  # todo: use our Fl type
                 color = bilerp(v00, v01, v10, v11, di, dj)  # todo: implement others interpolations
 
                 new_img[new_i, new_j] = color
-                old_img[int(old_i) + corretor[0], int(old_j)+corretor[1]] = color
+                old_img[int(old_i) + corretor[0], int(old_j) + corretor[1]] = color
 
     return old_img, new_img
 
@@ -96,8 +103,8 @@ def linear_map(matrix: np.ndarray, img: np.ndarray):  # todo: use our Fl type
 v: np.ndarray = cv2.imread('assets/cat.jpg')
 
 A = np.array([
-    [1, 0],
-    [1, 1]
+    [-2, -1],
+    [0, -2]
 ])
 
 theta = -math.pi / 8
@@ -105,7 +112,6 @@ R = np.array([
     [math.cos(theta), math.sin(theta)],
     [-math.sin(theta), math.cos(theta)]
 ])
-
 
 old_img, new_img = linear_map(A, v)
 
