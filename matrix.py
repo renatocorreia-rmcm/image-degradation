@@ -82,3 +82,9 @@ def inverse_matrix(matrix:np.ndarray, fl=False) -> np.ndarray:
             inverse[j][i] = x[j]
     
     return inverse @ permutation
+
+def mse(M1:np.ndarray, M2:np.ndarray):
+    if M1.shape != M2.shape:
+        raise ValueError(f"Matrices should be the same shape{M1.shape} != {M2.shape}")
+
+    return np.mean((M1 - M2)**2)

@@ -5,7 +5,7 @@ from math import log, floor
 
 # MACHINE SETTINGS
 b = 10
-t = 4
+t = 8   
 k1 = -3
 k2 = 3
 
@@ -162,3 +162,12 @@ class Fl:
     def __abs__(self):
         return Fl(abs(self.value))
 
+    # =====================
+    # casting
+    # =====================
+    
+    def __int__(self):
+        return int(self.value)
+    
+    def __float__(self):
+        return self.value

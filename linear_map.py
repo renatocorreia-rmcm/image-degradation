@@ -1,15 +1,18 @@
 import math
-
 import numpy as np
 import cv2
-
+import matrix
+import Fl
 
 def load_img(path: str) -> np.ndarray:
     img = cv2.imread(path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
     return img
 
-def bilerp(v00, v01, v10, v11, di, dj):
+def clamp(x, mi = 0, ma = 255):
+    return min(ma, max(mi,x))
+
+def bilerp(v00, v01, v10, v11, di, dj, fl=False):
     # weights
     w00 = (1 - di) * (1 - dj)
     w01 = (1 - di) * dj
@@ -20,10 +23,14 @@ def bilerp(v00, v01, v10, v11, di, dj):
     weights = [w00, w01, w10, w11]
 
     acc_rgb = np.zeros(3, dtype=np.float64)
+    if fl: acc_rgb = matrix.to_fl_matrix(acc_rgb)
+
     acc_alpha = 0.0
     total_weight = 0.0
 
     for p, w in zip(pixels, weights):
+        # if fl: Fl.Fl(w)
+
         alpha = p[3] / 255.0
 
         if alpha > 0:  # ignore fully transparent pixels
@@ -38,10 +45,10 @@ def bilerp(v00, v01, v10, v11, di, dj):
         return np.array([0, 0, 0, 0], dtype=np.uint8)
 
     return np.array([
-        int(rgb[0]),
-        int(rgb[1]),
-        int(rgb[2]),
-        int(alpha * 255)
+        clamp(int(rgb[0])),
+        clamp(int(rgb[1])),
+        clamp(int(rgb[2])),
+        clamp(int(alpha * 255))
     ], dtype=np.uint8)
 
 def rotate(img: np.ndarray, angle: float = (2*np.pi)/360):
@@ -88,7 +95,7 @@ def resize(img: np.ndarray, factor: float = None, width: int = None, height: int
     )
 
 
-def linear_map(matrix: np.ndarray, img: np.ndarray):  # todo: use our Fl type
+def linear_map(matrix: np.ndarray, img: np.ndarray, fl=False):
     assert matrix.shape == (2, 2)  # R2 square matrix
     assert img.ndim == 3  #  matrix of pixels
     assert img.shape[2] == 4  # alpha channel
@@ -132,13 +139,13 @@ def linear_map(matrix: np.ndarray, img: np.ndarray):  # todo: use our Fl type
     new_img = np.zeros((new_h, new_w, 4), dtype='uint8')
     old_img = np.zeros((new_h, new_w, 4), dtype='uint8')
 
-    for new_i in range(  # tranformed image bounding box i
+    for new_i in range(
             int(np.floor(np.min(transformed_vertices[:, 0]))+corretor[0]),
-            int(np.ceil(np.max(transformed_vertices[:, 0]))+corretor[0])
+            int(np.ceil(np.max(transformed_vertices[:, 0]))+corretor[0]) + 1
     ):
-        for new_j in range(  # tranformed image bounding box j
+        for new_j in range(
                 int(np.floor(np.min(transformed_vertices[:, 1]))+corretor[1]),
-                int(np.ceil(np.max(transformed_vertices[:, 1]))+corretor[1])
+                int(np.ceil(np.max(transformed_vertices[:, 1]))+corretor[1]) + 1
         ):
             old_i, old_j = matrix_inv @ np.array([new_i, new_j] - corretor)
 
@@ -165,13 +172,14 @@ def linear_map(matrix: np.ndarray, img: np.ndarray):  # todo: use our Fl type
                 di = old_i - fi
                 dj = old_j - fj
 
-                color = bilerp(v00, v01, v10, v11, di, dj)  # todo: implement others interpolations
+                color = bilerp(v00, v01, v10, v11, di, dj, fl)  # todo: implement others interpolations
 
                 new_img[new_i, new_j] = color
 
+    vc = np.vectorize(clamp)
     for i, line in enumerate(img):
         for j, col in enumerate(line):
-            old_img[i + corretor[0], j + corretor[1]] = img[i, j]
+            old_img[i + corretor[0], j + corretor[1]] = vc(img[i, j])
 
     return old_img, new_img
 
@@ -181,22 +189,25 @@ if __name__ == "__main__":
     v: np.ndarray = load_img('assets/tinycat.jpg')
 
     A = np.array([
-        [-1.5, -1],
-        [0, -0.75]
+        [1, 0],
+        [0, 1]
     ])
 
+    v_fl = matrix.to_fl_matrix(v)
+    v_fl_old, v_fl_new = linear_map(A, v_fl, fl=True)
+    
+    v_old, v_new = linear_map(A, v)
 
-    old_img, new_img = rotate(img=v)
-    cv2.imwrite('old_img.png', old_img)
-    cv2.imwrite('new_img.png', new_img)
-    overlay = cv2.addWeighted(new_img, 0.5, old_img, 0.5, 0)
-    cv2.imwrite('overlay.png', overlay)
+    error = abs(v_fl_new.astype(np.float64) - v_uint8_new.astype(np.float64))
 
-    for i in range(360):
-        old_img, new_img = rotate(img=new_img)
-        bgr = new_img[:, :, :3]  # drop alpha channel
-        cv2.imwrite('new_img.png', bgr)
-        print(i)
-        cv2.imwrite('old_img.png', old_img)
-        overlay = cv2.addWeighted(new_img, 0.5, old_img, 0.5, 0)
-        cv2.imwrite('overlay.png', overlay)
+    error_norm = (error / error.max()) * 255 if error.max() > 0 else error
+    error_norm = error_norm.astype(np.uint8)
+
+    error  = error.astype(np.uint8)
+
+    print(f"mse: {matrix.mse(v_fl_new, v_new)}")
+
+    cv2.imwrite("error_norm.jpeg", error_norm)
+    cv2.imwrite("error.jpeg", error)
+    cv2.imwrite("fl.png", v_fl_new)
+    cv2.imwrite("uint.png", v_uint8_new)
