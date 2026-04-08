@@ -1,8 +1,9 @@
 import math
 import numpy as np
 import cv2
-import matrix
+import matrix as mtx
 import Fl
+import interp
 
 def load_img(path: str) -> np.ndarray:
     img = cv2.imread(path)
@@ -11,45 +12,6 @@ def load_img(path: str) -> np.ndarray:
 
 def clamp(x, mi = 0, ma = 255):
     return min(ma, max(mi,x))
-
-def bilerp(v00, v01, v10, v11, di, dj, fl=False):
-    # weights
-    w00 = (1 - di) * (1 - dj)
-    w01 = (1 - di) * dj
-    w10 = di * (1 - dj)
-    w11 = di * dj
-
-    pixels = [v00, v01, v10, v11]
-    weights = [w00, w01, w10, w11]
-
-    acc_rgb = np.zeros(3, dtype=np.float64)
-    if fl: acc_rgb = matrix.to_fl_matrix(acc_rgb)
-
-    acc_alpha = 0.0
-    total_weight = 0.0
-
-    for p, w in zip(pixels, weights):
-        # if fl: Fl.Fl(w)
-
-        alpha = p[3] / 255.0
-
-        if alpha > 0:  # ignore fully transparent pixels
-            acc_rgb += p[:3] * w * alpha
-            acc_alpha += w * alpha
-            total_weight += w * alpha
-
-    if total_weight > 0:
-        rgb = acc_rgb / total_weight
-        alpha = acc_alpha / sum(weights)  # or just acc_alpha
-    else:
-        return np.array([0, 0, 0, 0], dtype=np.uint8)
-
-    return np.array([
-        clamp(int(rgb[0])),
-        clamp(int(rgb[1])),
-        clamp(int(rgb[2])),
-        clamp(int(alpha * 255))
-    ], dtype=np.uint8)
 
 def rotate(img: np.ndarray, angle: float = (2*np.pi)/360):
     return linear_map(
@@ -95,10 +57,11 @@ def resize(img: np.ndarray, factor: float = None, width: int = None, height: int
     )
 
 
-def linear_map(matrix: np.ndarray, img: np.ndarray, fl=False):
+def linear_map(matrix:np.ndarray, img:np.ndarray, fl:bool=False, interpolation:str="bilinear"):
     assert matrix.shape == (2, 2)  # R2 square matrix
     assert img.ndim == 3  #  matrix of pixels
     assert img.shape[2] == 4  # alpha channel
+    assert interpolation in ("bilinear", "bicubic")
 
     assert np.linalg.det(matrix) != 0
     matrix_inv = np.linalg.inv(matrix)  # todo: test gauss elimination, lu decomposition and QR decomposition
@@ -159,24 +122,24 @@ def linear_map(matrix: np.ndarray, img: np.ndarray, fl=False):
                 old_i = max(0, min(old_i, h - 1))
                 old_j = max(0, min(old_j, w - 1))
 
-                fi = int(math.floor(old_i))
-                fj = int(math.floor(old_j))
-                ci = min(fi + 1, h - 1)
-                cj = min(fj + 1, w - 1)
+                if interpolation == 'bicubic':
+                    color = interp.bicubic(img, old_i, old_j, h, w, fl)
+                else:
+                    fi, fj = int(math.floor(old_i)), int(math.floor(old_j))
+                    ci, cj = min(fi + 1, h - 1), min(fj + 1, w - 1)
 
-                v00 = img[fi, fj]
-                v01 = img[fi, cj]
-                v10 = img[ci, fj]
-                v11 = img[ci, cj]
+                    v00, v01 = img[fi, fj], img[fi, cj]
+                    v10, v11 = img[ci, fj], img[ci, cj]
 
-                di = old_i - fi
-                dj = old_j - fj
+                    di = old_i - fi
+                    dj = old_j - fj
 
-                color = bilerp(v00, v01, v10, v11, di, dj, fl)  # todo: implement others interpolations
+                    color = interp.bilerp(v00, v01, v10, v11, di, dj, fl)
 
                 new_img[new_i, new_j] = color
 
     vc = np.vectorize(clamp)
+
     for i, line in enumerate(img):
         for j, col in enumerate(line):
             old_img[i + corretor[0], j + corretor[1]] = vc(img[i, j])
@@ -193,21 +156,23 @@ if __name__ == "__main__":
         [0, 1]
     ])
 
-    v_fl = matrix.to_fl_matrix(v)
-    v_fl_old, v_fl_new = linear_map(A, v_fl, fl=True)
+    v_fl = mtx.to_fl_matrix(v)
+    _, v_fl_new = linear_map(A, v_fl, fl=True, interpolation="bicubic")
     
-    v_old, v_new = linear_map(A, v)
-
-    error = abs(v_fl_new.astype(np.float64) - v_uint8_new.astype(np.float64))
+    _, v_new_bicubic = linear_map(A, v, interpolation="bicubic")
+    _, v_new_linear = linear_map(A, v)
+    error = abs(v_fl_new.astype(np.float64) - v_new_linear.astype(np.float64))
 
     error_norm = (error / error.max()) * 255 if error.max() > 0 else error
     error_norm = error_norm.astype(np.uint8)
 
     error  = error.astype(np.uint8)
 
-    print(f"mse: {matrix.mse(v_fl_new, v_new)}")
+    print(f"mse: {mtx.mse(v_fl_new, v_new_linear)}")
 
     cv2.imwrite("error_norm.jpeg", error_norm)
     cv2.imwrite("error.jpeg", error)
     cv2.imwrite("fl.png", v_fl_new)
-    cv2.imwrite("uint.png", v_uint8_new)
+    cv2.imwrite("noFl.png", v_new_linear)
+    cv2.imwrite("resize_bicubic.png", v_new_bicubic)
+    cv2.imwrite("resize_bilinear.png", v_new_linear)
