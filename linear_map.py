@@ -57,11 +57,10 @@ def resize(img: np.ndarray, factor: float = None, width: int = None, height: int
     )
 
 
-def linear_map(matrix:np.ndarray, img:np.ndarray, fl:bool=False, interpolation:str="bilinear"):
+def linear_map(matrix:np.ndarray, img:np.ndarray, fl:bool=False, interpolation:func=interp.bilerp):
     assert matrix.shape == (2, 2)  # R2 square matrix
     assert img.ndim == 3  #  matrix of pixels
     assert img.shape[2] == 4  # alpha channel
-    assert interpolation in ("bilinear", "bicubic")
 
     assert np.linalg.det(matrix) != 0
     matrix_inv = np.linalg.inv(matrix)  # todo: test gauss elimination, lu decomposition and QR decomposition
@@ -122,19 +121,7 @@ def linear_map(matrix:np.ndarray, img:np.ndarray, fl:bool=False, interpolation:s
                 old_i = max(0, min(old_i, h - 1))
                 old_j = max(0, min(old_j, w - 1))
 
-                if interpolation == 'bicubic':
-                    color = interp.bicubic(img, old_i, old_j, h, w, fl)
-                else:
-                    fi, fj = int(math.floor(old_i)), int(math.floor(old_j))
-                    ci, cj = min(fi + 1, h - 1), min(fj + 1, w - 1)
-
-                    v00, v01 = img[fi, fj], img[fi, cj]
-                    v10, v11 = img[ci, fj], img[ci, cj]
-
-                    di = old_i - fi
-                    dj = old_j - fj
-
-                    color = interp.bilerp(v00, v01, v10, v11, di, dj, fl)
+                color = interpolation(img, old_i, old_j, h, w, fl)
 
                 new_img[new_i, new_j] = color
 
@@ -152,27 +139,11 @@ if __name__ == "__main__":
     v: np.ndarray = load_img('assets/tinycat.jpg')
 
     A = np.array([
-        [1, 0],
-        [0, 1]
+        [2, 0],
+        [0, 2]
     ])
 
     v_fl = mtx.to_fl_matrix(v)
-    _, v_fl_new = linear_map(A, v_fl, fl=True, interpolation="bicubic")
+    _, v_fl_new = linear_map(A, v, fl=False, interpolation=interp.lanczos)
     
-    _, v_new_bicubic = linear_map(A, v, interpolation="bicubic")
-    _, v_new_linear = linear_map(A, v)
-    error = abs(v_fl_new.astype(np.float64) - v_new_linear.astype(np.float64))
-
-    error_norm = (error / error.max()) * 255 if error.max() > 0 else error
-    error_norm = error_norm.astype(np.uint8)
-
-    error  = error.astype(np.uint8)
-
-    print(f"mse: {mtx.mse(v_fl_new, v_new_linear)}")
-
-    cv2.imwrite("error_norm.jpeg", error_norm)
-    cv2.imwrite("error.jpeg", error)
     cv2.imwrite("fl.png", v_fl_new)
-    cv2.imwrite("noFl.png", v_new_linear)
-    cv2.imwrite("resize_bicubic.png", v_new_bicubic)
-    cv2.imwrite("resize_bilinear.png", v_new_linear)
