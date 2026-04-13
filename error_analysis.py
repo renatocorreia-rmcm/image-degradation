@@ -179,8 +179,8 @@ def get_statistics(img_fl_input: np.ndarray, img_no_fl_input: np.ndarray):
 
 if __name__ == "__main__":
 
-    img1_fl_path = "experiments_linear/tinycat/lanczos_fl.png"
-    img1_no_fl_path = "experiments_linear/tinycat/lanczos_no_fl.png"
+    img1_fl_path = "experiments_linear/tinycat_shear/lanczos_fl.png"
+    img1_no_fl_path = "experiments_linear/tinycat_shear/lanczos_no_fl.png"
 
     matriz_fl = cv2.imread(img1_fl_path, cv2.IMREAD_COLOR)
     matriz_no_fl = cv2.imread(img1_no_fl_path, cv2.IMREAD_COLOR)

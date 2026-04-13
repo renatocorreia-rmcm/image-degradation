@@ -109,7 +109,7 @@ n = 50 # sequence length
 
 img_path = "tinycat.jpg"
 
-results, statistics = run_linear_experiment(img_path, A, n, ["bilerp", "bicubic", "lanczos"])
+results, statistics = run_linear_experiment(img_path, A, n, ["bicubic"])
 
 save_results(results, statistics, img_path)
 
