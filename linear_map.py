@@ -57,7 +57,7 @@ def resize(img: np.ndarray, factor: float = None, width: int = None, height: int
     )
 
 
-def linear_map(matrix:np.ndarray, img:np.ndarray, fl:bool=False, interpolation:func=interp.bilerp):
+def linear_map(matrix:np.ndarray, img:np.ndarray, fl:bool=False, interpolation=interp.bilerp):
     assert matrix.shape == (2, 2)  # R2 square matrix
     assert img.ndim == 3  #  matrix of pixels
     assert img.shape[2] == 4  # alpha channel
