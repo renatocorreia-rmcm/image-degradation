@@ -60,35 +60,56 @@ def run_linear_experiment(filename: str, A:np.ndarray, n: int, interp_methods: n
     # 7 = # metrics
     stats_serie = {k: np.zeros((n,7)) for k in interp_methods}
 
+    vertices_track = {
+        method: {
+            'fl': None,
+            'no_fl': None
+        } for method in interp_methods
+    }
+
+    vert= None
     for i in range(n):
 
         print(f"\nIteration : {i+1}")
 
         for interp_method, machines in results.items():
-            for machine in machines.keys():
+            for machine in ['fl', 'no_fl']:
                 
                 print(f"{interp_method} -- {machine}")
 
                 func = getattr(interp, interp_method)
-                _, new_img = linear_map(A, results[interp_method][machine], fl=(machine == 'fl'), interpolation=func)
+
+                v_atual = vertices_track[interp_method][machine]
+
+                new_img, new_vert = linear_map(
+                    matrix=A,
+                    img=results[interp_method][machine],
+                    use_fl=(machine == 'fl'),
+                    interpolation=func,
+                    vertices_pixels=v_atual
+                )
 
                 results[interp_method][machine] = new_img
+                vertices_track[interp_method][machine] = new_vert
+
+            cv2.imwrite("fl.png", results[interp_method]['fl'])
+            cv2.imwrite("no_fl.png", results[interp_method]['no_fl'])
 
             stats_serie[interp_method][i] = list(get_statistics(results[interp_method]['fl'], results[interp_method]['no_fl']).values())
     
 
     return results, stats_serie
 
-# Reflection 
+# Shear
 A = np.array([
-    [1, 0],
-    [0, -1]
+    [1, 0.05],
+    [0, 1]
 ])
-n = 2 # sequence length
+n = 4 # sequence length
 
 img_path = "tinycat.jpg"
 
-results, statistics = run_linear_experiment(img_path, A, n, ["bilerp"])
+results, statistics = run_linear_experiment(img_path, A, n, ["bilerp", "bicubic", "lanczos"])
 
 save_results(results, statistics, img_path)
 
