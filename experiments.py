@@ -9,7 +9,7 @@ import os
 def save_results(results, filename):
 
     dir_name = os.path.splitext(filename)[0]
-    output_path = os.path.join("experiments", dir_name)
+    output_path = os.path.join("experiments_linear", dir_name)
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -62,10 +62,13 @@ A = np.array([
     [1, 0],
     [0, -1]
 ])
-n = 2 # sequence length
+n = 1 # sequence length
 
 img = "tinycat.jpg"
 
-results = run_linear_experiment(img, A, 1, ["lanczos"])
+results = run_linear_experiment(img, A, n, ["lanczos"])
 
 save_results(results, img)
+
+
+
