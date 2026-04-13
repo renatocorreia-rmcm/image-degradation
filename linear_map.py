@@ -5,25 +5,29 @@ import matrix as mtx
 import Fl
 import interp
 
+
 def load_img(path: str) -> np.ndarray:
     img = cv2.imread(path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
     return img
 
-def clamp(x, mi = 0, ma = 255):
-    return min(ma, max(mi,x))
 
-def rotate(img: np.ndarray, angle: float = (2*np.pi)/360):
+def clamp(x, mi=0, ma=255):
+    return min(ma, max(mi, x))
+
+
+def rotate(img: np.ndarray, angle: float = (2 * np.pi) / 360, vertices_pixels=None):
     return linear_map(
         matrix=np.array([
             [math.cos(angle), math.sin(angle)],
             [-math.sin(angle), math.cos(angle)]
         ]),
-        img=img
+        img=img,
+        vertices_pixels=vertices_pixels
     )
 
 
-def resize(img: np.ndarray, factor: float = None, width: int = None, height: int = None):
+def resize(img: np.ndarray, factor: float = None, width: int = None, height: int = None, vertices_pixels=None):
     """
     takes scaling factor
     or raw new size
@@ -46,96 +50,131 @@ def resize(img: np.ndarray, factor: float = None, width: int = None, height: int
     if not height:
         height = (width / img.shape[1]) * img.shape[0]
     if not width:
-        width = (height/img.shape[0])*img.shape[1]
+        width = (height / img.shape[0]) * img.shape[1]
 
     return linear_map(
         np.array([
-            [height/img.shape[0], 0],
-            [0, width/img.shape[1]]
+            [height / img.shape[0], 0],
+            [0, width / img.shape[1]]
         ]),
-        img
+        img, vertices_pixels=vertices_pixels
     )
 
 
-def linear_map(matrix:np.ndarray, img:np.ndarray, fl:bool=False, interpolation=interp.bilerp):
+def linear_map(matrix: np.ndarray,
+               img: np.ndarray,
+               vertices_pixels: np.ndarray = None,
+               interpolation=interp.knn,
+               use_fl: bool = False):
+    """
+    parameters as p  refeers to original      space
+    parameters as p_ refeers to transformated space
+
+    maps new pixel to old pixel through vector space
+    p_ -> p
+    is done by
+    p_ -> v_ -> v -> p
+    """
     assert matrix.shape == (2, 2)  # R2 square matrix
-    assert img.ndim == 3  #  matrix of pixels
+    assert img.ndim == 3  # matrix of pixels
     assert img.shape[2] == 4  # alpha channel
 
     assert np.linalg.det(matrix) != 0
-    matrix_inv = np.linalg.inv(matrix)  # todo: test gauss elimination, lu decomposition and QR decomposition
+    matrix_inv = np.linalg.inv(matrix)
 
     h, w = img.shape[0], img.shape[1]
 
-    # vértices no formato (i, j)
-    original_vertices = [
-        [0, 0],
-        [0, w - 1],
-        [h - 1, 0],
-        [h - 1, w - 1]
-    ]
+    if vertices_pixels is None:  # imagem enquadrada perfeitamente
+        vertices_pixels = np.array([
+            [0, 0],
+            [0, w - 1],
+            [h - 1, 0],
+            [h - 1, w - 1]
+        ])
 
-    # aplica transformação
-    transformed_vertices = np.array([
-        matrix @ np.array(v) for v in original_vertices
+    def get_p(v):
+        """
+        map v to p
+        """
+        (a, b) = vertices_pixels[0]
+        # p = v + (a, b)
+        p = np.array([v[0] + a, v[1] + b])
+        return p
+
+    def get_v(p):
+        """
+        map v to p
+        """
+        (a, b) = vertices_pixels[0]
+        # v = p - (a, b)
+        v = np.array([p[0] - a, p[1] - b])
+        return v
+
+    vertices_vectors = np.array([get_v(p) for p in vertices_pixels])
+
+    vertices_vectors_ = np.array([
+        matrix @ np.array(v) for v in vertices_vectors
     ])
 
-    # calcula boundings
-    all_i = [v[0] for v in original_vertices] + [v[0] for v in transformed_vertices]
-    all_j = [v[1] for v in original_vertices] + [v[1] for v in transformed_vertices]
+    i_min_vectors_ = np.min(vertices_vectors_[:, 0])
+    i_max_vectors_ = np.max(vertices_vectors_[:, 0])
+    j_min_vectors_ = np.min(vertices_vectors_[:, 1])
+    j_max_vectors_ = np.max(vertices_vectors_[:, 1])
 
-    i_min = int(np.floor(np.min(all_i)))
-    i_max = int(np.ceil(np.max(all_i)))
-    j_min = int(np.floor(np.min(all_j)))
-    j_max = int(np.ceil(np.max(all_j)))
+    def get_p_(v_):
+        """
+        map v to p
+        """
+        (a_, b_) = [-i_min_vectors_, -j_min_vectors_]  # (0, 0) pra imagem enquadrada
+        # p_ = v_ + (a_, b_)
+        p_ = np.array([v_[0] + a_, v_[1] + b_])
+        return p_
 
-    # deslocamento pra evitar índice negativo
-    corretor = np.array([
-        -i_min if i_min < 0 else 0,
-        -j_min if j_min < 0 else 0
+    vertices_pixels_ = np.array([
+        get_p_(v_) for v_ in vertices_vectors_
     ])
 
-    new_h = i_max - i_min + 1
-    new_w = j_max - j_min + 1
+    h_ = int(i_max_vectors_ - i_min_vectors_) + 1
+    w_ = int(j_max_vectors_ - j_min_vectors_) + 1
 
-    new_img = np.zeros((new_h, new_w, 4), dtype='uint8')
-    old_img = np.zeros((new_h, new_w, 4), dtype='uint8')
+    img_ = np.zeros((h_, w_, 4), dtype='uint8')
 
-    for new_i in range(
-            int(np.floor(np.min(transformed_vertices[:, 0]))+corretor[0]),
-            int(np.ceil(np.max(transformed_vertices[:, 0]))+corretor[0]) + 1
-    ):
-        for new_j in range(
-                int(np.floor(np.min(transformed_vertices[:, 1]))+corretor[1]),
-                int(np.ceil(np.max(transformed_vertices[:, 1]))+corretor[1]) + 1
-        ):
-            old_i, old_j = matrix_inv @ np.array([new_i, new_j] - corretor)
+    def get_v_(p_):
+        """
+        map p_ to v_
+        """
+        (a_, b_) = [i_min_vectors_, j_min_vectors_]
+        # v_ = p_ - (a_, b_)
+        v_ = np.array([p_[0] + a_, p_[1] + b_])
+        return v_
+
+    def f(p_):
+        """
+        map p_ to p
+        """
+        v_ = get_v_(p_)
+        v = matrix_inv @ v_
+        p = get_p(v)
+        return p
+
+    for i_ in range(h_):
+        for j_ in range(w_):
+
+            p_ = np.array([i_, j_])
+            p = f(p_)
 
             if (
-                    0 <= old_i < h and
-                    0 <= old_j < w
-            ):  # todo: else: transparente (ao inves de preto) (adicionar canal alpha na imagem)
-                # img[old_i][old_j]
+                    0 <= p[0] < h and
+                    0 <= p[1] < w
+            ):
+                color = interpolation(img, p[0], p[1], h, w, use_fl)
 
-                # bounds safety
-                old_i = max(0, min(old_i, h - 1))
-                old_j = max(0, min(old_j, w - 1))
+                img_[i_, j_] = color
 
-                color = interpolation(img, old_i, old_j, h, w, fl)
-
-                new_img[new_i, new_j] = color
-
-    vc = np.vectorize(clamp)
-
-    for i, line in enumerate(img):
-        for j, col in enumerate(line):
-            old_img[i + corretor[0], j + corretor[1]] = vc(img[i, j])
-
-    return old_img, new_img
+    return img_, vertices_pixels_
 
 
 if __name__ == "__main__":
-
     v: np.ndarray = load_img('assets/tinycat.jpg')
 
     A = np.array([
@@ -144,6 +183,6 @@ if __name__ == "__main__":
     ])
 
     v_fl = mtx.to_fl_matrix(v)
-    _, v_fl_new = linear_map(A, v, fl=False, interpolation=interp.lanczos)
-    
+    v_fl_new, vertices = linear_map(A, v, use_fl=True, interpolation=interp.knn)
+
     cv2.imwrite("fl.png", v_fl_new)
