@@ -3,6 +3,12 @@ import math
 import matrix as mtx
 from Fl import Fl
 
+def safe_int_cast(fl_obj):
+    val = fl_obj.value if hasattr(fl_obj, 'value') else fl_obj
+    if math.isinf(val) or math.isnan(val):
+        return 0 # Ou 255
+    return int(val)
+
 def _clamp(x, mi = 0, ma = 255):
     return min(ma, max(mi, x))
 
@@ -53,9 +59,9 @@ def bilerp(img, old_i, old_j, h, w, fl=False):
         return np.array([0, 0, 0, 0], dtype=np.uint8)
 
     return np.array([
-        _clamp(int(rgb[0])),
-        _clamp(int(rgb[1])),
-        _clamp(int(rgb[2])),
+        _clamp(safe_int_cast(rgb[0])),
+        _clamp(safe_int_cast(rgb[1])),
+        _clamp(safe_int_cast(rgb[2])),
         _clamp(int(alpha * 255))
     ], dtype=np.uint8)
 
@@ -106,11 +112,11 @@ def bicubic(img, old_i, old_j, h, w, fl=False):
         return np.array([0, 0, 0, 0], dtype=np.uint8)
 
     return np.array([
-        _clamp(int(rgb[0])),
-        _clamp(int(rgb[1])),
-        _clamp(int(rgb[2])),
-        _clamp(int(alpha * 255))
-    ], dtype=np.uint8)
+            _clamp(safe_int_cast(rgb[0])),
+            _clamp(safe_int_cast(rgb[1])),
+            _clamp(safe_int_cast(rgb[2])),
+            _clamp(int(alpha * 255))
+        ], dtype=np.uint8)
 
 
 def lanczos(img, old_i, old_j, h, w, fl=False, a=3):
@@ -161,8 +167,8 @@ def lanczos(img, old_i, old_j, h, w, fl=False, a=3):
         return np.array([0, 0, 0, 0], dtype=np.uint8)
 
     return np.array([
-        _clamp(int(rgb[0])),
-        _clamp(int(rgb[1])),
-        _clamp(int(rgb[2])),
+        _clamp(safe_int_cast(rgb[0])),
+        _clamp(safe_int_cast(rgb[1])),
+        _clamp(safe_int_cast(rgb[2])),
         _clamp(int(alpha * 255))
     ], dtype=np.uint8)
