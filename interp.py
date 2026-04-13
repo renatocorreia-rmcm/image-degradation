@@ -1,9 +1,16 @@
 import numpy as np 
 import math
 import matrix as mtx
+from Fl import Fl
 
 def _clamp(x, mi = 0, ma = 255):
-    return min(ma, max(mi,x))
+    return min(ma, max(mi, x))
+
+def knn(img, old_i, old_j, h, w, fl=False):
+    if fl:
+        old_i = _clamp(x=Fl(old_i), ma=h-1)
+        old_j = _clamp(x=Fl(old_j), ma=w-1)
+    return img[int(old_i), int(old_j)]
 
 def bilerp(img, old_i, old_j, h, w, fl=False):
     fi = int(math.floor(old_i))
