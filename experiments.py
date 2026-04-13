@@ -105,7 +105,7 @@ A = np.array([
     [1, 0.05],
     [0, 1]
 ])
-n = 4 # sequence length
+n = 50 # sequence length
 
 img_path = "tinycat.jpg"
 

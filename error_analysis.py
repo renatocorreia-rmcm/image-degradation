@@ -105,6 +105,13 @@ def ssim(img1: np.ndarray, img2: np.ndarray) -> float:
 
 
 def get_statistics(img_fl_input: np.ndarray, img_no_fl_input: np.ndarray):
+    if img_fl_input.shape[-1] == 4:
+        img_fl_input = img_fl_input[..., :3]
+
+    if img_no_fl_input.shape[-1] == 4:
+        img_no_fl_input = img_no_fl_input[..., :3]
+
+
     img_fl_uint = np.clip(np.round(img_fl_input), 0, 255).astype(np.uint8)
     img_no_fl_uint = np.clip(np.round(img_no_fl_input), 0, 255).astype(np.uint8)
 
