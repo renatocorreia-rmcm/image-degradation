@@ -170,10 +170,6 @@ def get_statistics(img_fl_input: np.ndarray, img_no_fl_input: np.ndarray):
     }
 
 
-# To do: criar uma função que itere sobre as imagens em experiments linear
-#        pegue duas imagens do msm método de interpolaçao e armazene as estatísticas em um csv
-# - talvez fazer essa análise a cada iteração da sequencia de trasnformações seja melhor para analisar
-# Nesse caso, essa análise de erro rodaria dentro do run_linear_experiment (lembrar de tirar do plot do histograma, caso for fazer assim)
 if __name__ == "__main__":
 
     img1_fl_path = "experiments_linear/tinycat/lanczos_fl.png"

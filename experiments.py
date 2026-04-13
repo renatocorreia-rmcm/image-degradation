@@ -8,14 +8,14 @@ import os
 import pandas as pd
 
 
-
-def save_results(results, filename):
+def save_results(results, statistics, filename):
 
     dir_name = os.path.splitext(filename)[0]
     output_path = os.path.join("experiments_linear", dir_name)
 
     os.makedirs(output_path, exist_ok=True)
 
+    # Salvar as Imagens
     for k, methods in results.items():
         for interp_method, img_data in methods.items():
             
@@ -28,6 +28,21 @@ def save_results(results, filename):
                 print(f"Salvo: {full_file_path}")
             else:
                 print(f"Erro ao salvar: {full_file_path}")
+
+    # Salvar estatísticas
+    col_names = ["MSE", "RMSE", "MAE", "Max_Error", "PSNR", "SSIM", "Delta_E"]
+
+    for interp_method, matrix_data in statistics.items():
+        df = pd.DataFrame(matrix_data, columns=col_names)
+        
+        df.index = [f"Iteração {i+1}" for i in range(len(df))]
+        df.index.name = "Tempo" 
+        
+        csv_file_name = f"stats_{interp_method}.csv"
+        csv_full_path = os.path.join(output_path, csv_file_name)
+        
+
+        df.to_csv(csv_full_path, index=True)
 
 
 def run_linear_experiment(filename: str, A:np.ndarray, n: int, interp_methods: np.ndarray):
@@ -71,12 +86,10 @@ A = np.array([
 ])
 n = 2 # sequence length
 
-img = "tinycat.jpg"
+img_path = "tinycat.jpg"
 
-results, statistics = run_linear_experiment(img, A, n, ["bilerp"])
+results, statistics = run_linear_experiment(img_path, A, n, ["bilerp"])
 
-save_results(results, img)
-print(statistics["bilerp"])
-# todo > criar um dataframe pra cada método de interpolaçao
+save_results(results, statistics, img_path)
 
 
