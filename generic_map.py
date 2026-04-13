@@ -4,7 +4,7 @@ import cv2
 import sympy as sp
 
 from Fl import Fl
-from linear_map import bilerp
+from interp import bilerp
 
 
 
@@ -83,26 +83,8 @@ def generic_map_interpolated(f_inv, img, fl=False):
 
             if 0 <= val_i <= h - 1 and 0 <= val_j <= w - 1:
 
-                fi, fj = int(math.floor(val_i)), int(math.floor(val_j))
-                ci = min(fi + 1, h - 1)
-                cj = min(fj + 1, w - 1)
-
-                # Amostragem dos 4 vizinhos
-                v00 = img[fi, fj]
-                v01 = img[fi, cj]
-                v10 = img[ci, fj]
-                v11 = img[ci, cj]
-
-                # Distâncias fracionárias para o peso
-                if fl:
-                    di = orig_coords[1] - Fl(fi)
-                    dj = orig_coords[0] - Fl(fj)
-                else:
-                    di = val_i - fi
-                    dj = val_j - fj
-
                 # Interpolação Bilinear
-                new_img[i, j] = bilerp(v00, v01, v10, v11, di, dj, fl=fl)
+                new_img[i, j] = bilerp(img=img, old_i=val_i, old_j=val_j, h=h, w=w, fl=fl)
             else:
                 # Se cair fora da imagem original, fica transparente
                 new_img[i, j] = np.array([0, 0, 0, 0], dtype='uint8')
