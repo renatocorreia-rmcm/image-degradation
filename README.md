@@ -149,10 +149,33 @@ para máquina com parâmetros b=, t=,  k1=, k2=.
 ## Transformações lineares
 
 ### Contração
+`factor = 0.1`
+`interpolation = bicubic`
 
+`img:`
+
+<img src="assets/gam.jpg" width="100%">
+
+#### Python Float
+
+<img src="assets/gam_resized_1.png" width="100%">
+
+
+#### Fl(10, 2, -3, 3)
+
+<div style="display: flex; justify-content: space-around; align-items: center;">
+<img src="assets/gam_resized_fl_2.png" width="100%">
+</div>
+
+#### Fl(10, 1, -3, 3)
+
+<div style="display: flex; justify-content: space-around; align-items: center;">
+<img src="assets/gam_resized_fl_1.png" width="100%">
+</div>
 
 
 ### Magnificação
+
 
 ### Deformação
 

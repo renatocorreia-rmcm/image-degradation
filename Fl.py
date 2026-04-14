@@ -5,9 +5,9 @@ from math import log, floor
 
 # MACHINE SETTINGS
 b = 10
-t = 4
-k1 = -5
-k2 = 5
+t = 2
+k1 = -3
+k2 = 3
 
 
 class Fl:
