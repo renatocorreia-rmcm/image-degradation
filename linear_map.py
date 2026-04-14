@@ -199,18 +199,21 @@ def linear_map(matrix: np.ndarray,
 
 
 if __name__ == "__main__":
-    v: np.ndarray = load_img('assets/tinycat.jpg')
+    v: np.ndarray = load_img('assets/gam.jpg')
 
     A = np.array([
-        [0.7, 0],
-        [0, 0.7]
+        [0.1, 0],
+        [0, 0.1]
     ])
 
-    # resized, vertices = resize(img=v, factor=0.5, use_fl=False)
-    # resized_fl, vertices_fl = resize(img=v, factor=0.5, use_fl=True)
+    # resized, vertices = resize(img=v, factor=0.1, use_fl=False)
+    # resized_fl, vertices_fl = resize(img=v, factor=0.1, use_fl=True)
 
-    resized, vertices = linear_map(img=v, matrix=A, use_fl=False)
-    resized_fl, vertices_fl = linear_map(img=v, matrix=A, use_fl=True)
+    resized, vertices = rotate(img=v, angle=1, use_fl=False)
+    resized_fl, vertices_fl = rotate(img=v, angle=1, use_fl=True)
+
+    # resized, vertices = linear_map(img=v, matrix=A, use_fl=False)
+    # resized_fl, vertices_fl = linear_map(img=v, matrix=A, use_fl=True)
 
     cv2.imwrite("assets/no_fl.png", resized)
     cv2.imwrite("assets/fl.png", resized_fl)
